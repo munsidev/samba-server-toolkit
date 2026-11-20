@@ -1,7 +1,7 @@
 # Samba Server Setup and Management Toolkit
 
 > **Course:** Operating Systems Course Project  
-> **Target OS:** Ubuntu Linux 22.04 LTS (Jammy Jellyfish) & Ubuntu 24.04 LTS (Noble Numbat)  
+> **Target OS:** Ubuntu Linux 24.04 LTS 
 > **Language:** Bash Shell Script (`samba-toolkit.sh`)  
 > **Author:** Khalid hasan Munsi  
 
