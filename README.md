@@ -1,7 +1,7 @@
 # Samba Server Setup and Management Toolkit
 
 > **Course:** Operating Systems Course Project  
-> **Target OS:** Ubuntu Linux 24.04 LTS 
+> **Target OS:** Ubuntu Linux 24.04 LTS (or 22.04 LTS)
 > **Language:** Bash Shell Script (`samba-toolkit.sh`)  
 > **Author:** Khalid hasan Munsi  
 
