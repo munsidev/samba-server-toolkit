@@ -1,0 +1,25 @@
+# Operating Systems Course Project - Samba Toolkit
+# Ignore local runtime logs
+*.log
+samba-toolkit.log
+
+# Ignore configuration backup files
+*.bak
+*.bak.*
+smb.conf.bak.*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor and IDE directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
