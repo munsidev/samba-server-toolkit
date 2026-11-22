@@ -129,27 +129,42 @@ The toolkit supports both an interactive text menu and non-interactive status fl
 
 When launched without non-interactive flags, the toolkit presents an interactive menu:
 
-```
-================================================================================
-  Samba Server Setup and Management Toolkit (v1.0.0)
-================================================================================
- Course: Operating Systems Project | Target: Ubuntu 22.04 / 24.04 LTS
- MODE: [LIVE EXECUTION] (EUID: 0)
- Config File: /etc/samba/smb.conf
-================================================================================
-  [1] System Diagnostics & Environment Check
-  [2] Install / Verify Samba Packages
-  [3] Create or Update Password-Protected Share
-  [4] List Managed Shares & Settings
-  [5] Validate Configuration (testparm)
-  [6] Check Samba Service Status
-  [7] Remove a Managed Share
-  [8] Client Connection Instructions & IP Addresses
-  [9] View Audit Log
-  [S] Start / Stop / Restart Samba Service
-  [T] Toggle Dry-Run Mode (Disabled)
-  [0] Exit Toolkit (Option to stop Samba on exit)
-================================================================================
+```text
+╭──────────────────────────────────────────────────────────────────────────╮
+│  ⚡  SAMBA SERVER SETUP & MANAGEMENT TOOLKIT  •  v1.0.0                  │
+│  Operating Systems Course Project  •  Ubuntu 24.04 LTS (or 22.04)        │
+├──────────────────────────────────────────────────────────────────────────┤
+│  Status : ● RUNNING  Server IP: 192.168.0.101    Shares: 2  active       │
+│  Mode   : 🛡 LIVE (root)  Config   : /etc/samba/smb.conf                 │
+╰──────────────────────────────────────────────────────────────────────────╯
+
+╭──────────────────────────────────────────────────────────────────────────╮
+│  [ SYSTEM & SERVICE CONTROLS ]                                           │
+├──────────────────────────────────────────────────────────────────────────┤
+│   [1]  System Diagnostics & Environment Check                            │
+│   [2]  Install / Verify Samba Packages                                   │
+│   [S]  Service Control (Start / Stop / Restart / Reload)                 │
+├──────────────────────────────────────────────────────────────────────────┤
+│  [ SHARE MANAGEMENT ]                                                    │
+├──────────────────────────────────────────────────────────────────────────┤
+│   [3]  Create or Update Password-Protected Share                         │
+│   [4]  List Managed Shares & Settings                                    │
+│   [5]  Validate Configuration Syntax (testparm)                          │
+│   [7]  Remove a Managed Share (Clean Excising)                           │
+├──────────────────────────────────────────────────────────────────────────┤
+│  [ NETWORK & AUDIT ]                                                     │
+├──────────────────────────────────────────────────────────────────────────┤
+│   [6]  Check Samba Service & Connection Status (smbstatus)               │
+│   [8]  Client Connection Guide (Win, Mac, iOS, Android, Linux)           │
+│   [9]  View Project Audit Log                                            │
+├──────────────────────────────────────────────────────────────────────────┤
+│  [ SESSION & EXIT ]                                                      │
+├──────────────────────────────────────────────────────────────────────────┤
+│   [T]  Toggle Dry-Run Simulation Mode                                    │
+│   [0]  Exit Toolkit (With automatic service stop prompt)                 │
+╰──────────────────────────────────────────────────────────────────────────╯
+
+ ❯ Select an option [0-9, S, T]: 
 ```
 
 ### Option 1: System Diagnostics & Environment Check
@@ -245,6 +260,19 @@ Assuming server IP `192.168.1.50`, share `project_files`, and username `os_user`
   sudo mkdir -p /mnt/samba_share
   sudo mount -t cifs //192.168.1.50/project_files /mnt/samba_share -o username=os_user
   ```
+
+### Apple iOS Clients (iPhone & iPad)
+1. Open the built-in **Files** app.
+2. Tap the **Browse** tab, then tap the **More (...)** menu in the top-right corner.
+3. Select **Connect to Server**.
+4. Enter: `smb://192.168.1.50/project_files`
+5. Select **Registered User**, enter username `os_user` and the Samba password.
+
+### Android Clients (Google Pixel / Samsung)
+1. Install **Cx File Explorer** or **Solid Explorer** from the Google Play Store.
+2. Tap the **Network** tab ➔ **New Location (+)** ➔ **Remote** ➔ **SMB**.
+3. Host: `192.168.1.50`, Port: `445`, Path: `project_files`.
+4. Enter username `os_user` and the Samba password.
 
 ---
 

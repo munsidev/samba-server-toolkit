@@ -43,23 +43,76 @@ SKIP_OS_CHECK=false
 INTERACTIVE=true
 TEMP_DIR=""
 
-# Color escape codes (disabled automatically if not attached to a terminal)
+# Color escape codes and UI glyphs
 if [[ -t 1 ]] && [[ "${NO_COLOR:-0}" != "1" ]]; then
     COLOR_RESET="\033[0m"
     COLOR_BOLD="\033[1m"
-    COLOR_RED="\033[31m"
-    COLOR_GREEN="\033[32m"
-    COLOR_YELLOW="\033[33m"
-    COLOR_BLUE="\033[34m"
-    COLOR_CYAN="\033[36m"
+    COLOR_DIM="\033[2m"
+    COLOR_ITALIC="\033[3m"
+    COLOR_UNDERLINE="\033[4m"
+    COLOR_RED="\033[38;5;203m"
+    COLOR_GREEN="\033[38;5;84m"
+    COLOR_YELLOW="\033[38;5;221m"
+    COLOR_BLUE="\033[38;5;75m"
+    COLOR_CYAN="\033[38;5;45m"
+    COLOR_PURPLE="\033[38;5;141m"
+    COLOR_WHITE="\033[38;5;255m"
+    COLOR_GRAY="\033[38;5;245m"
+    COLOR_DARK="\033[38;5;238m"
 else
     COLOR_RESET=""
     COLOR_BOLD=""
+    COLOR_DIM=""
+    COLOR_ITALIC=""
+    COLOR_UNDERLINE=""
     COLOR_RED=""
     COLOR_GREEN=""
     COLOR_YELLOW=""
     COLOR_BLUE=""
     COLOR_CYAN=""
+    COLOR_PURPLE=""
+    COLOR_WHITE=""
+    COLOR_GRAY=""
+    COLOR_DARK=""
+fi
+
+# Box-drawing characters (Unicode with ASCII fallback)
+if [[ "${LC_ALL:-${LC_CTYPE:-$LANG}}" =~ [uU][tT][fF]-?8 ]] || [[ -n "${TERM_PROGRAM:-}" ]] || [[ "${TERM:-}" == *"256color"* ]]; then
+    USE_UNICODE=true
+    BOX_TL="╭"
+    BOX_TR="╮"
+    BOX_BL="╰"
+    BOX_BR="╯"
+    BOX_H="─"
+    BOX_V="│"
+    BOX_T_LEFT="├"
+    BOX_T_RIGHT="┤"
+    ICON_CHECK="✔"
+    ICON_CROSS="✖"
+    ICON_WARN="▲"
+    ICON_INFO="ℹ"
+    ICON_ARROW="❯"
+    ICON_DOT="●"
+    ICON_BOLT="⚡"
+    ICON_SHIELD="🛡"
+else
+    USE_UNICODE=false
+    BOX_TL="+"
+    BOX_TR="+"
+    BOX_BL="+"
+    BOX_BR="+"
+    BOX_H="-"
+    BOX_V="|"
+    BOX_T_LEFT="+"
+    BOX_T_RIGHT="+"
+    ICON_CHECK="[OK]"
+    ICON_CROSS="[X]"
+    ICON_WARN="[!]"
+    ICON_INFO="[i]"
+    ICON_ARROW=">"
+    ICON_DOT="*"
+    ICON_BOLT="[*]"
+    ICON_SHIELD="[SEC]"
 fi
 
 # ------------------------------------------------------------------------------
@@ -111,35 +164,48 @@ log_error() { log_msg "ERROR" "$1"; }
 # ------------------------------------------------------------------------------
 # UI Presentation Helpers
 # ------------------------------------------------------------------------------
+draw_h_line() {
+    local len="${1:-74}"
+    local line=""
+    for ((i=0; i<len; i++)); do
+        line+="$BOX_H"
+    done
+    printf "%s" "$line"
+}
+
 print_header() {
-    printf "\n%b%s%b\n" "${COLOR_BOLD}${COLOR_BLUE}" "================================================================================" "$COLOR_RESET"
-    printf "%b  %s%b\n" "${COLOR_BOLD}${COLOR_CYAN}" "$1" "$COLOR_RESET"
-    printf "%b%s%b\n" "${COLOR_BOLD}${COLOR_BLUE}" "================================================================================" "$COLOR_RESET"
+    local title="$1"
+    printf "\n%b%s%s%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_TL" "$(draw_h_line 74)" "$BOX_TR" "$COLOR_RESET"
+    printf "%b%s%b  %b%s  %-68s%b%b%s%b\n" \
+        "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" \
+        "${COLOR_YELLOW}${COLOR_BOLD}" "$ICON_BOLT" "$title" "$COLOR_RESET" \
+        "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%s%s%b\n\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_BL" "$(draw_h_line 74)" "$BOX_BR" "$COLOR_RESET"
 }
 
 print_info() {
-    printf "%b[INFO]%b %s\n" "${COLOR_CYAN}" "${COLOR_RESET}" "$1"
+    printf " %b%s%b  %s\n" "${COLOR_CYAN}${COLOR_BOLD}" "$ICON_INFO" "${COLOR_RESET}" "$1"
 }
 
 print_success() {
-    printf "%b[SUCCESS]%b %s\n" "${COLOR_GREEN}" "${COLOR_RESET}" "$1"
+    printf " %b%s%b  %s\n" "${COLOR_GREEN}${COLOR_BOLD}" "$ICON_CHECK" "${COLOR_RESET}" "$1"
 }
 
 print_warning() {
-    printf "%b[WARNING]%b %s\n" "${COLOR_YELLOW}" "${COLOR_RESET}" "$1"
+    printf " %b%s%b  %s\n" "${COLOR_YELLOW}${COLOR_BOLD}" "$ICON_WARN" "${COLOR_RESET}" "$1"
 }
 
 print_error() {
-    printf "%b[ERROR]%b %s\n" "${COLOR_RED}" "${COLOR_RESET}" "$1" >&2
+    printf " %b%s%b  %s\n" "${COLOR_RED}${COLOR_BOLD}" "$ICON_CROSS" "${COLOR_RESET}" "$1" >&2
 }
 
 print_dry_run() {
-    printf "%b[DRY-RUN]%b %s\n" "${COLOR_YELLOW}${COLOR_BOLD}" "${COLOR_RESET}" "$1"
+    printf " %b%s [DRY-RUN]%b  %s\n" "${COLOR_YELLOW}${COLOR_BOLD}" "$ICON_BOLT" "${COLOR_RESET}" "$1"
 }
 
 press_enter_to_continue() {
     if [[ "$INTERACTIVE" == true ]]; then
-        printf "\nPress [Enter] to return to the main menu..."
+        printf "\n %b↵ Press [Enter] to return to the menu...%b" "${COLOR_DIM}" "${COLOR_RESET}"
         # shellcheck disable=SC2034
         read -r dummy
     fi
@@ -151,12 +217,12 @@ confirm_action() {
     local response
 
     if [[ "$default_ans" == "Y" ]]; then
-        prompt_msg="${prompt_msg} [Y/n]: "
+        prompt_msg="${prompt_msg} [Y/n]"
     else
-        prompt_msg="${prompt_msg} [y/N]: "
+        prompt_msg="${prompt_msg} [y/N]"
     fi
 
-    printf "%b%s%b" "${COLOR_BOLD}" "$prompt_msg" "${COLOR_RESET}"
+    printf " %b%s %s: %b" "${COLOR_CYAN}${COLOR_BOLD}" "$ICON_ARROW" "$prompt_msg" "${COLOR_RESET}"
     read -r response
     response="${response:-$default_ans}"
 
@@ -244,29 +310,30 @@ detect_environment() {
         fi
     }
 
-    printf "\n%bPrivilege & Execution Context:%b\n" "${COLOR_BOLD}" "${COLOR_RESET}"
+    printf " %bPrivilege & Execution Context:%b\n" "${COLOR_BOLD}${COLOR_WHITE}" "${COLOR_RESET}"
     if [[ "$EUID" -eq 0 ]]; then
-        print_success "Effective User: root (UID 0) - privileged actions permitted."
+        print_success "Effective User: root (UID 0) — administrative privileges confirmed."
     else
-        print_warning "Effective User: UID $EUID (non-root). Real server setup requires sudo."
+        print_warning "Effective User: UID $EUID (non-root) — live server setup requires sudo."
     fi
 
     if [[ "$DRY_RUN" == true ]]; then
-        print_dry_run "Dry-Run mode is ACTIVE. No modifications will be made to files or services."
+        print_dry_run "Simulation mode is ACTIVE. Zero changes will be made to files or services."
     fi
 
-    printf "\n%bRequired Tools & Daemon Detection:%b\n" "${COLOR_BOLD}" "${COLOR_RESET}"
+    printf "\n %bRequired Tools & Daemon Detection:%b\n" "${COLOR_BOLD}${COLOR_WHITE}" "${COLOR_RESET}"
     local tools=("testparm" "smbd" "smbpasswd" "systemctl" "ip" "awk" "sed" "grep")
     for t in "${tools[@]}"; do
         if command -v "$t" >/dev/null 2>&1; then
-            printf "  %-14s: %bINSTALLED%b (%s)\n" "$t" "${COLOR_GREEN}" "${COLOR_RESET}" "$(command -v "$t")"
+            printf "   %-14s %b%s INSTALLED%b  %b(%s)%b\n" "$t" "${COLOR_GREEN}${COLOR_BOLD}" "$ICON_CHECK" "${COLOR_RESET}" "${COLOR_GRAY}" "$(command -v "$t")" "${COLOR_RESET}"
         else
-            printf "  %-14s: %bNOT FOUND%b\n" "$t" "${COLOR_RED}" "${COLOR_RESET}"
+            printf "   %-14s %b%s NOT FOUND%b\n" "$t" "${COLOR_RED}${COLOR_BOLD}" "$ICON_CROSS" "${COLOR_RESET}"
         fi
     done
 
-    printf "\n%bLog File Location:%b %s\n" "${COLOR_BOLD}" "${COLOR_RESET}" "$(get_log_destination)"
-    printf "%bSamba Config Path:%b %s\n" "${COLOR_BOLD}" "${COLOR_RESET}" "$SMB_CONF_PATH"
+    printf "\n %bSystem Paths & Storage:%b\n" "${COLOR_BOLD}${COLOR_WHITE}" "${COLOR_RESET}"
+    printf "   %-18s: %b%s%b\n" "Log File" "${COLOR_CYAN}" "$(get_log_destination)" "${COLOR_RESET}"
+    printf "   %-18s: %b%s%b\n" "Samba Config" "${COLOR_CYAN}" "$SMB_CONF_PATH" "${COLOR_RESET}"
 }
 
 # ------------------------------------------------------------------------------
@@ -467,7 +534,7 @@ create_or_update_share() {
     # 1. Share Name
     local share_name=""
     while true; do
-        printf "%bEnter Share Name%b (e.g., os_project_share): " "${COLOR_BOLD}" "${COLOR_RESET}"
+        printf " %b%s [Step 1/5] Enter Share Name%b (e.g. myshare): " "${COLOR_CYAN}${COLOR_BOLD}" "$ICON_ARROW" "${COLOR_RESET}"
         read -r share_name
         if validate_share_name "$share_name"; then
             break
@@ -478,7 +545,7 @@ create_or_update_share() {
     local default_path="/srv/samba/${share_name}"
     local share_path=""
     while true; do
-        printf "%bEnter Directory Path%b [default: %s]: " "${COLOR_BOLD}" "${COLOR_RESET}" "$default_path"
+        printf " %b%s [Step 2/5] Enter Directory Path%b [default: %s]: " "${COLOR_CYAN}${COLOR_BOLD}" "$ICON_ARROW" "${COLOR_RESET}" "$default_path"
         read -r share_path
         share_path="${share_path:-$default_path}"
         if validate_share_path "$share_path"; then
@@ -489,7 +556,7 @@ create_or_update_share() {
     # 3. Existing Linux Username
     local share_user=""
     while true; do
-        printf "%bEnter Existing Linux Username%b to grant access: " "${COLOR_BOLD}" "${COLOR_RESET}"
+        printf " %b%s [Step 3/5] Enter Authorized Linux User%b: " "${COLOR_CYAN}${COLOR_BOLD}" "$ICON_ARROW" "${COLOR_RESET}"
         read -r share_user
         if [[ -z "$share_user" ]]; then
             print_error "Username cannot be empty."
@@ -520,24 +587,24 @@ create_or_update_share() {
 
     # 4. Access Permissions: Read-Write or Read-Only
     local read_only="no"
-    if confirm_action "Should this share be Read-Only? (No = Read & Write)" "N"; then
+    if confirm_action "[Step 4/5] Should this share be Read-Only? (No = Read & Write)" "N"; then
         read_only="yes"
     fi
 
     # 5. Comment / Description
-    printf "%bEnter Share Description%b [default: %s]: " "${COLOR_BOLD}" "${COLOR_RESET}" "Managed Share for $share_user"
+    printf " %b%s Enter Share Description%b [default: Managed Share for %s]: " "${COLOR_CYAN}${COLOR_BOLD}" "$ICON_ARROW" "${COLOR_RESET}" "$share_user"
     local share_comment=""
     read -r share_comment
     share_comment="${share_comment:-Managed Share for $share_user}"
 
     # 6. Samba Password Configuration
-    printf "\n%bSamba Password Configuration for user '%s':%b\n" "${COLOR_BOLD}" "$share_user" "${COLOR_RESET}"
-    print_info "Note: Samba maintains its own password database via smbpasswd."
+    printf "\n %b%s [Step 5/5] Configure Samba Password for user '%s'%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$ICON_ARROW" "$share_user" "${COLOR_RESET}"
+    print_info "Samba uses an independent password database via smbpasswd."
     local smb_pass=""
     local smb_pass_confirm=""
 
     while true; do
-        printf "Enter Samba Password for '%s': " "$share_user"
+        printf "   Enter Samba Password for '%s': " "$share_user"
         read -r -s smb_pass
         echo ""
         if [[ -z "$smb_pass" ]]; then
@@ -545,7 +612,7 @@ create_or_update_share() {
             continue
         fi
 
-        printf "Confirm Samba Password: "
+        printf "   Confirm Samba Password: "
         read -r -s smb_pass_confirm
         echo ""
 
@@ -558,17 +625,19 @@ create_or_update_share() {
         break
     done
 
-    # 7. Review Planned Configuration
-    printf "\n%b================ Planned Share Summary ===============%b\n" "${COLOR_CYAN}" "${COLOR_RESET}"
-    echo "  Share Name       : [$share_name]"
-    echo "  Directory Path   : $share_path"
-    echo "  Authorized User  : $share_user"
-    echo "  Access Level     : $( [[ "$read_only" == "yes" ]] && echo "Read-Only" || echo "Read-Write" )"
-    echo "  Guest Access     : Disabled (Strict Authentication Required)"
-    echo "  Directory Perms  : 2770 (Owner & Group read/write/execute, others denied)"
-    echo "  File Create Mask : 0660 (Restrictive, no world-accessible files)"
-    echo "  Target Config    : $SMB_CONF_PATH"
-    printf "%b======================================================%b\n\n" "${COLOR_CYAN}" "${COLOR_RESET}"
+    # 7. Review Planned Configuration Card
+    printf "\n%b%s%s%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_TL" "$(draw_h_line 74)" "$BOX_TR" "$COLOR_RESET"
+    printf "%b%s%b  %-71s %b%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "[ CONFIGURATION REVIEW SUMMARY ]" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%s%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_T_LEFT" "$(draw_h_line 74)" "$BOX_T_RIGHT" "$COLOR_RESET"
+    printf "%b%s%b   %-18s: %-50s %b%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "Share Name" "[$share_name]" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   %-18s: %-50s %b%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "Directory Path" "$share_path" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   %-18s: %-50s %b%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "Authorized User" "$share_user" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   %-18s: %-50s %b%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "Access Mode" "$([[ "$read_only" == "yes" ]] && echo "Read-Only" || echo "Read & Write")" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   %-18s: %-50s %b%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "Guest Access" "Disabled (Strict Password Auth)" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   %-18s: %-50s %b%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "Directory Mask" "2770 (Owner & Group read/write/execute)" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   %-18s: %-50s %b%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "File Mask" "0660 (Restrictive, no world access)" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   %-18s: %-50s %b%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "Target Config" "$SMB_CONF_PATH" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%s%s%b\n\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_BL" "$(draw_h_line 74)" "$BOX_BR" "$COLOR_RESET"
 
     if ! confirm_action "Apply this configuration now?"; then
         print_info "Operation cancelled by user."
@@ -842,22 +911,24 @@ start_samba_service() {
 }
 
 manage_service_menu() {
-    print_header "Samba Service Control"
-    echo "  [1] Start Samba (smbd)"
-    echo "  [2] Stop Samba (smbd & nmbd)"
-    echo "  [3] Restart Samba (sever all active sessions)"
-    echo "  [4] Reload Samba configuration"
-    echo "  [0] Back to Main Menu"
+    print_header "Samba Daemon & Service Control"
+    printf "%b%s%s%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_TL" "$(draw_h_line 74)" "$BOX_TR" "$COLOR_RESET"
+    printf "%b%s%b   %b[1]%b  Start Samba (smbd)                                                %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   %b[2]%b  Stop Samba (smbd & nmbd)                                          %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   %b[3]%b  Restart Samba (sever active client sessions)                      %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   %b[4]%b  Reload Configuration (seamless SIGHUP update)                     %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   %b[0]%b  Return to Main Menu                                               %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%s%s%b\n\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_BL" "$(draw_h_line 74)" "$BOX_BR" "$COLOR_RESET"
 
     local s_choice
-    printf "\nEnter choice [0-4]: "
+    printf " %b%s Select service action [0-4]: %b" "${COLOR_CYAN}${COLOR_BOLD}" "$ICON_ARROW" "${COLOR_RESET}"
     read -r s_choice
     case "$s_choice" in
         1) start_samba_service ;;
         2) stop_samba_service ;;
         3) restart_samba_service ;;
         4) reload_samba_service ;;
-        *) print_info "No changes made." ;;
+        *) print_info "Returning to main menu without changes." ;;
     esac
 }
 
@@ -869,24 +940,24 @@ check_service_status() {
         return 0
     fi
 
-    printf "%bService Active Status:%b\n" "${COLOR_BOLD}" "${COLOR_RESET}"
+    printf " %bSystemd Service State:%b\n" "${COLOR_BOLD}${COLOR_WHITE}" "${COLOR_RESET}"
     local services=("smbd" "nmbd")
     for svc in "${services[@]}"; do
         if systemctl is-active --quiet "$svc" 2>/dev/null; then
-            printf "  %-10s: %bRUNNING (active)%b\n" "$svc" "${COLOR_GREEN}" "${COLOR_RESET}"
+            printf "   %-10s %b%s RUNNING (active)%b\n" "$svc" "${COLOR_GREEN}${COLOR_BOLD}" "$ICON_DOT" "${COLOR_RESET}"
         elif systemctl is-enabled --quiet "$svc" 2>/dev/null; then
-            printf "  %-10s: %bINACTIVE (enabled)%b\n" "$svc" "${COLOR_YELLOW}" "${COLOR_RESET}"
+            printf "   %-10s %b○ INACTIVE (enabled)%b\n" "$svc" "${COLOR_YELLOW}${COLOR_BOLD}" "${COLOR_RESET}"
         else
-            printf "  %-10s: %bSTOPPED / NOT FOUND%b\n" "$svc" "${COLOR_RED}" "${COLOR_RESET}"
+            printf "   %-10s %b■ STOPPED / NOT FOUND%b\n" "$svc" "${COLOR_RED}${COLOR_BOLD}" "${COLOR_RESET}"
         fi
     done
 
     if command -v smbstatus >/dev/null 2>&1; then
-        printf "\n%bActive Client Connections & Open Shares (smbstatus):%b\n" "${COLOR_BOLD}" "${COLOR_RESET}"
+        printf "\n %bActive Client Connections & Open Shares (smbstatus):%b\n" "${COLOR_BOLD}${COLOR_WHITE}" "${COLOR_RESET}"
         smbstatus --shares 2>/dev/null || smbstatus -S 2>/dev/null || print_info "No active client connections."
     fi
 
-    printf "\n%bRecent Systemd Journal Entries for smbd:%b\n" "${COLOR_BOLD}" "${COLOR_RESET}"
+    printf "\n %bRecent Systemd Journal Entries for smbd:%b\n" "${COLOR_BOLD}${COLOR_WHITE}" "${COLOR_RESET}"
     journalctl -u smbd --no-pager -n 10 2>/dev/null || print_warning "Could not read journalctl logs (requires sudo/adm group)."
 }
 
@@ -917,9 +988,10 @@ list_managed_shares() {
         return 0
     fi
 
-    printf "%bFound %d managed share(s):%b\n\n" "${COLOR_GREEN}" "${#share_names[@]}" "${COLOR_RESET}"
-    printf "%b%-20s %-30s %-15s %-10s%b\n" "${COLOR_BOLD}" "SHARE NAME" "PATH" "VALID USER" "READ ONLY" "${COLOR_RESET}"
-    printf "%s\n" "--------------------------------------------------------------------------------"
+    printf " %bFound %d toolkit-managed share(s):%b\n\n" "${COLOR_GREEN}${COLOR_BOLD}" "${#share_names[@]}" "${COLOR_RESET}"
+    printf "┌────────────────────┬────────────────────────────┬──────────────┬────────────┐\n"
+    printf "│ %-18s │ %-26s │ %-12s │ %-10s │\n" "SHARE NAME" "DIRECTORY PATH" "VALID USER" "ACCESS"
+    printf "├────────────────────┼────────────────────────────┼──────────────┼────────────┤\n"
 
     for name in "${share_names[@]}"; do
         local begin_marker="${DELIM_BEGIN_PREFIX}${name}] ==="
@@ -937,9 +1009,12 @@ list_managed_shares() {
         val_user=$(echo "$block" | grep -E '^[[:space:]]*valid users[[:space:]]*=' | head -n1 | cut -d= -f2- | tr -d ' ')
         ro=$(echo "$block" | grep -E '^[[:space:]]*read only[[:space:]]*=' | head -n1 | cut -d= -f2- | tr -d ' ')
 
-        printf "%-20s %-30s %-15s %-10s\n" "[$name]" "${path:-N/A}" "${val_user:-N/A}" "${ro:-no}"
+        local ro_label="Read-Write"
+        [[ "$ro" == "yes" ]] && ro_label="Read-Only"
+
+        printf "│ %-18s │ %-26s │ %-12s │ %-10s │\n" "[$name]" "${path:0:26}" "${val_user:0:12}" "$ro_label"
     done
-    printf "%s\n" "--------------------------------------------------------------------------------"
+    printf "└────────────────────┴────────────────────────────┴──────────────┴────────────┘\n"
 }
 
 # ------------------------------------------------------------------------------
@@ -1003,14 +1078,14 @@ remove_managed_share() {
     local share_path
     share_path=$(echo "$block" | grep -E '^[[:space:]]*path[[:space:]]*=' | head -n1 | cut -d= -f2- | tr -d ' ')
 
-    printf "\n%bRemoval Impact Assessment:%b\n" "${COLOR_BOLD}${COLOR_RED}" "${COLOR_RESET}"
-    echo "  - The configuration block for '[$target_share]' will be excised from $SMB_CONF_PATH."
-    echo "  - All other shares and [global] settings will be preserved untouched."
-    echo "  - A timestamped backup will be created prior to alteration."
-    echo "  - The resulting configuration will be validated with testparm."
-    echo "  - smbd service will be reloaded."
-    echo "  - Associated directory: ${share_path:-Unknown}"
-    echo ""
+    printf "\n%b%s%s%s%b\n" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_TL" "$(draw_h_line 74)" "$BOX_TR" "$COLOR_RESET"
+    printf "%b%s%b  %-71s %b%s%b\n" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "[ REMOVAL IMPACT ASSESSMENT ]" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%s%s%b\n" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_T_LEFT" "$(draw_h_line 74)" "$BOX_T_RIGHT" "$COLOR_RESET"
+    printf "%b%s%b   • Target Share Section : %b%-46s%b %b%s%b\n" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_RED}[$target_share]" "${COLOR_RESET}" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   • Configuration File   : %-46s %b%s%b\n" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "$SMB_CONF_PATH" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   • Shared Directory     : %-46s %b%s%b\n" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${share_path:-Unknown}" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%b   • Safety Protections   : Timestamped backup + automatic testparm rollback %b%s%b\n" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+    printf "%b%s%s%s%b\n\n" "${COLOR_YELLOW}${COLOR_BOLD}" "$BOX_BL" "$(draw_h_line 74)" "$BOX_BR" "$COLOR_RESET"
 
     if ! confirm_action "Are you sure you want to remove share '[$target_share]' from Samba configuration?"; then
         print_info "Removal cancelled."
@@ -1146,30 +1221,31 @@ show_connection_instructions() {
 
     local primary_ip="${ip_addresses[0]:-127.0.0.1}"
 
-    printf "%bDetected Server IP Address(es):%b\n" "${COLOR_BOLD}" "${COLOR_RESET}"
+    printf " %bServer Network Endpoint(s):%b\n" "${COLOR_BOLD}${COLOR_WHITE}" "${COLOR_RESET}"
     for ip in "${ip_addresses[@]}"; do
-        printf "  - %b%s%b\n" "${COLOR_GREEN}" "$ip" "${COLOR_RESET}"
+        printf "   %b%s%b %s\n" "${COLOR_GREEN}${COLOR_BOLD}" "$ICON_DOT" "${COLOR_RESET}" "$ip"
     done
 
-    printf "\n%b1. Windows Clients (File Explorer or CMD):%b\n" "${COLOR_BOLD}${COLOR_CYAN}" "${COLOR_RESET}"
-    echo "   File Explorer Address Bar:"
-    printf "     %b%s%b\n" "${COLOR_YELLOW}" "\\\\${primary_ip}\\${share_name}" "${COLOR_RESET}"
-    echo "   Command Prompt / PowerShell (Map to Network Drive Z:):"
-    printf "     %b%s%b\n" "${COLOR_YELLOW}" "net use Z: \\\\${primary_ip}\\${share_name} /user:${user} *" "${COLOR_RESET}"
+    printf "\n %b1. Windows Clients (File Explorer / CMD):%b\n" "${COLOR_BOLD}${COLOR_CYAN}" "${COLOR_RESET}"
+    printf "    Address Bar : %b%s%b\n" "${COLOR_YELLOW}" "\\\\${primary_ip}\\${share_name}" "${COLOR_RESET}"
+    printf "    Command Line: %b%s%b\n" "${COLOR_YELLOW}" "net use Z: \\\\${primary_ip}\\${share_name} /user:${user} *" "${COLOR_RESET}"
 
-    printf "\n%b2. macOS Clients (Finder):%b\n" "${COLOR_BOLD}${COLOR_CYAN}" "${COLOR_RESET}"
-    echo "   Press [Command + K] in Finder and enter:"
-    printf "     %bsmb://%s@%s/%s%b\n" "${COLOR_YELLOW}" "$user" "$primary_ip" "$share_name" "${COLOR_RESET}"
+    printf "\n %b2. macOS Clients (Finder):%b\n" "${COLOR_BOLD}${COLOR_CYAN}" "${COLOR_RESET}"
+    printf "    Finder (Cmd+K): %b%s%b\n" "${COLOR_YELLOW}" "smb://${user}@${primary_ip}/${share_name}" "${COLOR_RESET}"
 
-    printf "\n%b3. Linux Clients:%b\n" "${COLOR_BOLD}${COLOR_CYAN}" "${COLOR_RESET}"
-    echo "   Command Line Testing (smbclient):"
-    printf "     %bsmbclient //%s/%s -U %s%b\n" "${COLOR_YELLOW}" "$primary_ip" "$share_name" "$user" "${COLOR_RESET}"
-    echo "   Mount CIFS Share:"
-    printf "     %bsudo mount -t cifs //%s/%s /mnt -o username=%s%b\n" "${COLOR_YELLOW}" "$primary_ip" "$share_name" "$user" "${COLOR_RESET}"
+    printf "\n %b3. Apple iOS (iPhone & iPad):%b\n" "${COLOR_BOLD}${COLOR_CYAN}" "${COLOR_RESET}"
+    printf "    Files App ➔ [...] ➔ Connect to Server: %b%s%b\n" "${COLOR_YELLOW}" "smb://${primary_ip}/${share_name}" "${COLOR_RESET}"
+    printf "    Select 'Registered User' ➔ Name: %b%s%b ➔ Password\n" "${COLOR_WHITE}${COLOR_BOLD}" "$user" "${COLOR_RESET}"
 
-    printf "\n%b4. Firewall Note (Ubuntu UFW):%b\n" "${COLOR_BOLD}${COLOR_CYAN}" "${COLOR_RESET}"
-    echo "   If client cannot connect, allow Samba through the firewall:"
-    printf "     %bsudo ufw allow samba%b  (Ports: 137,138/udp and 139,445/tcp)\n" "${COLOR_YELLOW}" "${COLOR_RESET}"
+    printf "\n %b4. Android (Google Pixel / Samsung):%b\n" "${COLOR_BOLD}${COLOR_CYAN}" "${COLOR_RESET}"
+    printf "    Cx File Explorer ➔ Network ➔ [+] ➔ SMB: %b%s%b (Port 445)\n" "${COLOR_YELLOW}" "${primary_ip}" "${COLOR_RESET}"
+
+    printf "\n %b5. Linux Clients (CLI & Mount):%b\n" "${COLOR_BOLD}${COLOR_CYAN}" "${COLOR_RESET}"
+    printf "    Interactive : %b%s%b\n" "${COLOR_YELLOW}" "smbclient //${primary_ip}/${share_name} -U ${user}" "${COLOR_RESET}"
+    printf "    Mount CIFS  : %b%s%b\n" "${COLOR_YELLOW}" "sudo mount -t cifs //${primary_ip}/${share_name} /mnt -o username=${user}" "${COLOR_RESET}"
+
+    printf "\n %b6. Firewall Note (Ubuntu UFW):%b\n" "${COLOR_BOLD}${COLOR_CYAN}" "${COLOR_RESET}"
+    printf "    Allow Samba : %b%s%b (Ports 137,138/udp, 139,445/tcp)\n" "${COLOR_YELLOW}" "sudo ufw allow samba" "${COLOR_RESET}"
 }
 
 # ------------------------------------------------------------------------------
@@ -1237,31 +1313,87 @@ EOF
 main_menu() {
     while true; do
         clear 2>/dev/null || printf "\033[2J\033[H"
-        print_header "Samba Server Setup and Management Toolkit (v${TOOLKIT_VERSION})"
-        echo " Course: Operating Systems Project | Target: Ubuntu 22.04 / 24.04 LTS"
-        if [[ "$DRY_RUN" == true ]]; then
-            printf " %bMODE: [DRY-RUN / PREVIEW ONLY - NO SYSTEM CHANGES]%b\n" "${COLOR_YELLOW}${COLOR_BOLD}" "${COLOR_RESET}"
+
+        # 1. Gather dynamic indicators for the top dashboard
+        local status_badge
+        if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet smbd 2>/dev/null; then
+            status_badge="${COLOR_GREEN}${COLOR_BOLD}${ICON_DOT} RUNNING${COLOR_RESET}"
         else
-            printf " %bMODE: [LIVE EXECUTION]%b (EUID: %d)\n" "${COLOR_GREEN}" "${COLOR_RESET}" "$EUID"
+            status_badge="${COLOR_RED}${COLOR_BOLD}○ STOPPED${COLOR_RESET}"
         fi
-        echo " Config File: $SMB_CONF_PATH"
-        echo "================================================================================"
-        echo "  [1] System Diagnostics & Environment Check"
-        echo "  [2] Install / Verify Samba Packages"
-        echo "  [3] Create or Update Password-Protected Share"
-        echo "  [4] List Managed Shares & Settings"
-        echo "  [5] Validate Configuration (testparm)"
-        echo "  [6] Check Samba Service Status"
-        echo "  [7] Remove a Managed Share"
-        echo "  [8] Client Connection Instructions & IP Addresses"
-        echo "  [9] View Audit Log"
-        echo "  [S] Start / Stop / Restart Samba Service"
-        echo "  [T] Toggle Dry-Run Mode ($( [[ "$DRY_RUN" == true ]] && echo "Enabled" || echo "Disabled" ))"
-        echo "  [0] Exit Toolkit (Option to stop Samba on exit)"
-        echo "================================================================================"
+
+        local mode_badge
+        if [[ "$DRY_RUN" == true ]]; then
+            mode_badge="${COLOR_YELLOW}${COLOR_BOLD}${ICON_BOLT} DRY-RUN (sim)${COLOR_RESET}"
+        elif [[ "$EUID" -eq 0 ]]; then
+            mode_badge="${COLOR_GREEN}${COLOR_BOLD}${ICON_SHIELD} LIVE (root)${COLOR_RESET}"
+        else
+            mode_badge="${COLOR_YELLOW}${COLOR_BOLD}${ICON_WARN} NON-ROOT${COLOR_RESET}"
+        fi
+
+        local share_count=0
+        if [[ -f "$SMB_CONF_PATH" ]]; then
+            share_count=$(grep -c "^${DELIM_BEGIN_PREFIX}" "$SMB_CONF_PATH" 2>/dev/null || echo 0)
+        fi
+
+        local host_ip
+        host_ip=$(get_server_ips | head -n1)
+        host_ip="${host_ip:-127.0.0.1}"
+
+        # 2. Top Header & Live Status Dashboard
+        printf "\n%b%s%s%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_TL" "$(draw_h_line 74)" "$BOX_TR" "$COLOR_RESET"
+        printf "%b%s%b  %b%s  SAMBA SERVER SETUP & MANAGEMENT TOOLKIT%b  •  %bv%s%b         %b%s%b\n" \
+            "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" \
+            "${COLOR_YELLOW}${COLOR_BOLD}" "$ICON_BOLT" "$COLOR_RESET" \
+            "${COLOR_CYAN}" "$TOOLKIT_VERSION" "$COLOR_RESET" \
+            "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%b  %bOperating Systems Course Project  •  Ubuntu 24.04 LTS (or 22.04)%b        %b%s%b\n" \
+            "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" \
+            "${COLOR_GRAY}" "$COLOR_RESET" \
+            "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%s%s%b\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_T_LEFT" "$(draw_h_line 74)" "$BOX_T_RIGHT" "$COLOR_RESET"
+        printf "%b%s%b  Status : %-19b  Server IP: %b%-15s%b  Shares: %b%-2s active%b   %b%s%b\n" \
+            "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" \
+            "$status_badge" \
+            "${COLOR_CYAN}${COLOR_BOLD}" "$host_ip" "$COLOR_RESET" \
+            "${COLOR_WHITE}${COLOR_BOLD}" "$share_count" "$COLOR_RESET" \
+            "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%b  Mode   : %-19b  Config   : %b%-33s%b %b%s%b\n" \
+            "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" \
+            "$mode_badge" \
+            "${COLOR_GRAY}" "${SMB_CONF_PATH:0:33}" "$COLOR_RESET" \
+            "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%s%s%b\n\n" "${COLOR_CYAN}${COLOR_BOLD}" "$BOX_BL" "$(draw_h_line 74)" "$BOX_BR" "$COLOR_RESET"
+
+        # 3. Categorized Menu Cards
+        printf "%b%s%s%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_TL" "$(draw_h_line 74)" "$BOX_TR" "$COLOR_RESET"
+        printf "%b%s%b  %b[ SYSTEM & SERVICE CONTROLS ]%b                                          %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_BOLD}${COLOR_WHITE}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%s%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_T_LEFT" "$(draw_h_line 74)" "$BOX_T_RIGHT" "$COLOR_RESET"
+        printf "%b%s%b   %b[1]%b  System Diagnostics & Environment Check                            %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%b   %b[2]%b  Install / Verify Samba Packages                                   %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%b   %b[S]%b  Service Control (Start / Stop / Restart / Reload)                 %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%s%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_T_LEFT" "$(draw_h_line 74)" "$BOX_T_RIGHT" "$COLOR_RESET"
+        printf "%b%s%b  %b[ SHARE MANAGEMENT ]%b                                                  %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_BOLD}${COLOR_WHITE}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%s%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_T_LEFT" "$(draw_h_line 74)" "$BOX_T_RIGHT" "$COLOR_RESET"
+        printf "%b%s%b   %b[3]%b  Create or Update Password-Protected Share                         %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%b   %b[4]%b  List Managed Shares & Settings                                    %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%b   %b[5]%b  Validate Configuration Syntax (testparm)                          %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%b   %b[7]%b  Remove a Managed Share (Clean Excising)                           %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%s%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_T_LEFT" "$(draw_h_line 74)" "$BOX_T_RIGHT" "$COLOR_RESET"
+        printf "%b%s%b  %b[ NETWORK & AUDIT ]%b                                                   %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_BOLD}${COLOR_WHITE}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%s%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_T_LEFT" "$(draw_h_line 74)" "$BOX_T_RIGHT" "$COLOR_RESET"
+        printf "%b%s%b   %b[6]%b  Check Samba Service & Connection Status (smbstatus)               %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%b   %b[8]%b  Client Connection Guide (Win, Mac, iOS, Android, Linux)           %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%b   %b[9]%b  View Project Audit Log                                            %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%s%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_T_LEFT" "$(draw_h_line 74)" "$BOX_T_RIGHT" "$COLOR_RESET"
+        printf "%b%s%b  %b[ SESSION & EXIT ]%b                                                    %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_BOLD}${COLOR_WHITE}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%s%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_T_LEFT" "$(draw_h_line 74)" "$BOX_T_RIGHT" "$COLOR_RESET"
+        printf "%b%s%b   %b[T]%b  Toggle Dry-Run Simulation Mode                                    %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%b   %b[0]%b  Exit Toolkit (With automatic service stop prompt)                 %b%s%b\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET" "${COLOR_YELLOW}${COLOR_BOLD}" "$COLOR_RESET" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_V" "$COLOR_RESET"
+        printf "%b%s%s%s%b\n\n" "${COLOR_BLUE}${COLOR_BOLD}" "$BOX_BL" "$(draw_h_line 74)" "$BOX_BR" "$COLOR_RESET"
 
         local choice
-        printf "%bEnter your choice [0-9, S, T]: %b" "${COLOR_BOLD}" "${COLOR_RESET}"
+        printf " %b%s Select an option [0-9, S, T]: %b" "${COLOR_CYAN}${COLOR_BOLD}" "$ICON_ARROW" "${COLOR_RESET}"
         read -r choice
 
         case "$choice" in
